@@ -177,8 +177,6 @@ kubectl delete -f manifests/ --ignore-not-found
 gcloud container clusters delete $CLUSTER_NAME --zone $ZONE --quiet
 ```
 
----
-
 ## Key autoscaler settings
 
 | Setting | Default |
