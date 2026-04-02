@@ -14,14 +14,6 @@ This lab has two parts:
 - How `safe-to-evict` annotation blocks node removal
 - How to deploy the OSS autoscaler as a Deployment
 
-## Duration
-
-45–60 minutes (Part A alone: ~35 minutes)
-
-## Cost
-
-~$0.20–$0.60 depending on cluster lifetime.
-
 ## Prerequisites
 
 - `gcloud` CLI authenticated
@@ -33,8 +25,6 @@ This lab has two parts:
 gcloud services enable container.googleapis.com
 ```
 
----
-
 ## Set variables
 
 ```bash
@@ -43,16 +33,12 @@ export CLUSTER_NAME=lab-cluster-autoscaler
 export ZONE=us-central1-a
 ```
 
----
-
 ## Clone the repo
 
 ```bash
 git clone https://github.com/misskecupbung/gke-cluster-autoscaler-oss.git
 cd gke-cluster-autoscaler-oss
 ```
-
----
 
 ## Part A — GKE managed autoscaler
 
@@ -148,8 +134,6 @@ You should see one node listed as `NotSafeToEvict`.
 kubectl delete -f manifests/non-evictable-pod.yaml
 ```
 
----
-
 ## Part B — Deploy the open-source autoscaler
 
 The OSS codebase: https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler
@@ -185,8 +169,6 @@ kubectl apply -f manifests/inflate.yaml
 ```
 
 Same behavior — nodes added when pods are pending.
-
----
 
 ## Step 7 — Clean up
 
