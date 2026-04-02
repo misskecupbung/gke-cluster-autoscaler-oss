@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inflate
+spec:
+  replicas: 10
+  selector:
+    matchLabels:
+      app: inflate
+  template:
+    metadata:
+      labels:
+        app: inflate
+    spec:
+      # Use low priority so these pods are good candidates for eviction
+      # during scale-down tests, if you add a PriorityClass
+      terminationGracePeriodSeconds: 0
+      containers:
+      - name: inflate
+        # This image does nothing — it just consumes resources to trigger autoscaling
+        image: registry.k8s.io/pause:3.9
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "512Mi"

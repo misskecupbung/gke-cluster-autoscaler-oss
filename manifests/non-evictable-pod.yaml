@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: non-evictable-pod
+  annotations:
+    # This annotation tells the cluster autoscaler to NOT evict this pod
+    # Nodes that only have pods with this annotation will not be removed
+    cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+spec:
+  containers:
+  - name: app
+    image: registry.k8s.io/pause:3.9
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
