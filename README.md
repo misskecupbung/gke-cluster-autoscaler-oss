@@ -188,24 +188,68 @@ gcloud container clusters update $CLUSTER_NAME \
   --node-pool default-pool
 ```
 
-The GKE managed autoscaler creates its own `cluster-autoscaler` ClusterRoleBinding. Delete it first so the OSS manifest can create one with the correct ServiceAccount subject:
+GKE's addon reconciler keeps its own `cluster-autoscaler` ClusterRoleBinding alive. The OSS manifest uses the name `cluster-autoscaler-oss` for its ClusterRoleBinding to avoid that conflict. No cleanup needed.
+
+The OSS autoscaler runs as a pod, so it needs GCP API access to manage MIGs. Set up Workload Identity:
 
 ```bash
-kubectl delete clusterrolebinding cluster-autoscaler
+# Enable Workload Identity on the cluster
+gcloud container clusters update $CLUSTER_NAME \
+  --zone $ZONE \
+  --workload-pool=$PROJECT_ID.svc.id.goog
+
+# Update the node pool to use GKE metadata server
+gcloud container node-pools update default-pool \
+  --cluster=$CLUSTER_NAME \
+  --zone=$ZONE \
+  --workload-metadata=GKE_METADATA
+
+# Create a GCP service account
+gcloud iam service-accounts create cluster-autoscaler \
+  --display-name "Cluster Autoscaler OSS"
+
+# Grant it permission to manage compute resources
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member "serviceAccount:cluster-autoscaler@$PROJECT_ID.iam.gserviceaccount.com" \
+  --role "roles/compute.admin"
+
+# Allow the Kubernetes ServiceAccount to impersonate it
+gcloud iam service-accounts add-iam-policy-binding \
+  cluster-autoscaler@$PROJECT_ID.iam.gserviceaccount.com \
+  --role roles/iam.workloadIdentityUser \
+  --member "serviceAccount:$PROJECT_ID.svc.id.goog[kube-system/cluster-autoscaler]"
 ```
 
-Substitute your project and cluster name into the manifest, then deploy:
+GKE truncates cluster names in MIG names (e.g. `lab-cluster-autoscaler` → `lab-cluster-autoscal`). Derive the exact prefix from existing node names:
+
+```bash
+MIG_PREFIX=$(kubectl get nodes -o jsonpath='{.items[0].metadata.name}' \
+  | sed 's/-[a-z0-9]\{8\}-[a-z0-9]\{4\}$//')
+echo $MIG_PREFIX
+# e.g. gke-lab-cluster-autoscal-default-pool
+```
+
+Deploy:
 
 ```bash
 sed -e "s/YOUR_PROJECT_ID/$PROJECT_ID/g" \
-    -e "s/YOUR_CLUSTER_NAME/$CLUSTER_NAME/g" \
+    -e "s/YOUR_MIG_PREFIX/$MIG_PREFIX/g" \
     manifests/cluster-autoscaler-oss.yaml | kubectl apply -f -
 ```
+
+Verify the Workload Identity annotation is on the Kubernetes ServiceAccount:
+
+```bash
+kubectl get serviceaccount cluster-autoscaler -n kube-system \
+  -o jsonpath='{.metadata.annotations}'
+```
+
+Expected output includes `iam.gke.io/gcp-service-account`.
 
 Verify the binding has the correct subject:
 
 ```bash
-kubectl get clusterrolebinding cluster-autoscaler -o jsonpath='{.subjects}'
+kubectl get clusterrolebinding cluster-autoscaler-oss -o jsonpath='{.subjects}'
 ```
 
 Expected: `[{"kind":"ServiceAccount","name":"cluster-autoscaler","namespace":"kube-system"}]`

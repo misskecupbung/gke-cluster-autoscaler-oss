@@ -4,8 +4,7 @@
 #
 # Replace the following placeholders before applying:
 #   YOUR_PROJECT_ID  -> your GCP project ID
-#   YOUR_CLUSTER_NAME -> your GKE cluster name
-#   YOUR_ZONE        -> e.g. us-central1-a
+#   YOUR_MIG_PREFIX  -> MIG name prefix (derive from: kubectl get nodes -o jsonpath='{.items[0].metadata.name}' | sed 's/-[a-z0-9]\{8\}-[a-z0-9]\{4\}$//')
 
 ---
 apiVersion: v1
