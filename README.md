@@ -30,7 +30,7 @@ gcloud services enable container.googleapis.com
 ```bash
 export PROJECT_ID=$(gcloud config get-value project)
 export CLUSTER_NAME=lab-cluster-autoscaler
-export ZONE=us-central1-a
+export ZONE=us-central1-f
 ```
 
 ## Clone the repo
@@ -49,6 +49,8 @@ gcloud container clusters create $CLUSTER_NAME \
   --zone $ZONE \
   --num-nodes 1 \
   --machine-type e2-standard-2 \
+  --disk-size=50 \
+  --disk-type=pd-standard \
   --enable-autoscaling \
   --min-nodes 1 \
   --max-nodes 5
@@ -111,24 +113,61 @@ watch kubectl describe configmap cluster-autoscaler-status -n kube-system
 
 ### Step 6 — Test safe-to-evict
 
+First deploy the non-evictable pod:
+
 ```bash
 kubectl apply -f manifests/non-evictable-pod.yaml
-kubectl apply -f manifests/inflate.yaml
+kubectl get pods
 ```
 
-Wait for 2 nodes, then delete inflate:
+Confirm the annotation is set:
+
+```bash
+kubectl get pod non-evictable-pod \
+  -o jsonpath='{.metadata.annotations.cluster-autoscaler\.kubernetes\.io/safe-to-evict}'
+```
+
+Expected output:
+```
+false
+```
+
+Now re-apply inflate to force a second node to be added:
+
+```bash
+kubectl apply -f manifests/inflate.yaml
+kubectl get pods -w
+```
+
+Wait until all inflate pods are `Running`. Check which pods are on which nodes:
+
+```bash
+kubectl get pods -o wide
+```
+
+Delete inflate to trigger scale-down:
 
 ```bash
 kubectl delete -f manifests/inflate.yaml
 ```
 
-The node with the non-evictable pod stays — the autoscaler respects the annotation.
+After ~10 minutes, check nodes and pods:
 
 ```bash
-kubectl describe configmap cluster-autoscaler-status -n kube-system | grep -A5 "ScaleDown"
+kubectl get nodes
+kubectl get pods -o wide
 ```
 
-You should see one node listed as `NotSafeToEvict`.
+The cluster scaled down from 4 nodes to 2. One node is kept for the `min=1` requirement, the other is kept because `non-evictable-pod` blocks eviction.
+
+Check the autoscaler status:
+
+```bash
+kubectl get configmap cluster-autoscaler-status -n kube-system \
+  -o jsonpath='{.data.status}'
+```
+
+You'll see `scaleDown.status: NoCandidates` — both remaining nodes are blocked from removal. Without the annotation, the cluster would have scaled down to 1 node.
 
 ```bash
 kubectl delete -f manifests/non-evictable-pod.yaml
@@ -149,10 +188,12 @@ gcloud container clusters update $CLUSTER_NAME \
   --node-pool default-pool
 ```
 
-Deploy the OSS version:
+Substitute your project and cluster name into the manifest, then deploy:
 
 ```bash
-kubectl apply -f manifests/cluster-autoscaler-oss.yaml
+sed -e "s/YOUR_PROJECT_ID/$PROJECT_ID/g" \
+    -e "s/YOUR_CLUSTER_NAME/$CLUSTER_NAME/g" \
+    manifests/cluster-autoscaler-oss.yaml | kubectl apply -f -
 ```
 
 Check it's running:
