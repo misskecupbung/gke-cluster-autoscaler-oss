@@ -116,6 +116,7 @@ spec:
         - --node-group-auto-discovery=mig:namePrefix=gke-YOUR_CLUSTER_NAME,min=1,max=5
         - --balance-similar-node-groups
         - --skip-nodes-with-system-pods=false
+        - --leader-elect=false
         env:
         - name: GOOGLE_CLOUD_PROJECT
           value: "YOUR_PROJECT_ID"
