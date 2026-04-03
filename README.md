@@ -188,6 +188,12 @@ gcloud container clusters update $CLUSTER_NAME \
   --node-pool default-pool
 ```
 
+The GKE managed autoscaler creates its own `cluster-autoscaler` ClusterRoleBinding. Delete it first so the OSS manifest can create one with the correct ServiceAccount subject:
+
+```bash
+kubectl delete clusterrolebinding cluster-autoscaler
+```
+
 Substitute your project and cluster name into the manifest, then deploy:
 
 ```bash
@@ -195,6 +201,14 @@ sed -e "s/YOUR_PROJECT_ID/$PROJECT_ID/g" \
     -e "s/YOUR_CLUSTER_NAME/$CLUSTER_NAME/g" \
     manifests/cluster-autoscaler-oss.yaml | kubectl apply -f -
 ```
+
+Verify the binding has the correct subject:
+
+```bash
+kubectl get clusterrolebinding cluster-autoscaler -o jsonpath='{.subjects}'
+```
+
+Expected: `[{"kind":"ServiceAccount","name":"cluster-autoscaler","namespace":"kube-system"}]`
 
 Check it's running:
 
