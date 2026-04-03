@@ -115,7 +115,7 @@ spec:
         - --cloud-provider=gce
         - --skip-nodes-with-local-storage=false
         - --expander=least-waste
-        - --node-group-auto-discovery=mig:namePrefix=gke-YOUR_CLUSTER_NAME,min=1,max=5
+        - --node-group-auto-discovery=mig:namePrefix=YOUR_MIG_PREFIX,min=1,max=5
         - --balance-similar-node-groups
         - --skip-nodes-with-system-pods=false
         - --leader-elect=false
